@@ -6,12 +6,11 @@ import (
 	"os"
 
 	pb "github.com/bege13mot/vessel-service/proto/vessel"
-	consulapi "github.com/hashicorp/consul/api"
 	"google.golang.org/grpc"
 )
 
 const (
-	defaultGrpcAddr = "localhost:50053"
+	defaultGrpcAddr = ":50053"
 	defaultDbHost   = "localhost:27017"
 
 	defaultConsulAddr = "localhost:8500"
@@ -22,6 +21,13 @@ var (
 	dbHost     = os.Getenv("DB_HOST")
 	grpcAddr   = os.Getenv("GRPC_ADDR")
 	consulAddr = os.Getenv("CONSUL_ADDR")
+
+	// BuildTime is a time label of the moment when the binary was built
+	BuildTime = "unset"
+	// Version is a last commit hash at the moment when the binary was built
+	Version = "unset"
+	// Branch name
+	Branch = "unset"
 )
 
 func initVar() {
@@ -40,6 +46,11 @@ func initVar() {
 		log.Println("Use default Consul connection settings")
 		consulAddr = defaultConsulAddr
 	}
+
+	log.Printf(
+		"Starting the service...\ncommit: %s, build time: %s, release: %s",
+		Version, BuildTime, Branch,
+	)
 }
 
 func createDummyData(repo repository) {
@@ -78,37 +89,6 @@ func main() {
 	// implementation into the auto-generated interface code for our
 	// protobuf definitio
 	pb.RegisterVesselServiceServer(s, &service{session})
-
-	//Connect to Consul
-	config := consulapi.DefaultConfig()
-	config.Address = consulAddr
-	consul, err := consulapi.NewClient(config)
-	if err != nil {
-		log.Println("Error during connect to Consul, ", err)
-	}
-
-	serviceID := "vessel-service_" + grpcAddr
-
-	//Register in Consul
-	defer func() {
-		cErr := consul.Agent().ServiceDeregister(serviceID)
-		if cErr != nil {
-			log.Println("Cant add service to Consul", cErr)
-			return
-		}
-		log.Println("Deregistered in Consul", serviceID)
-	}()
-
-	err = consul.Agent().ServiceRegister(&consulapi.AgentServiceRegistration{
-		ID:      serviceID,
-		Name:    "vessel-service",
-		Port:    50053,
-		Address: "host123",
-	})
-	if err != nil {
-		log.Println("Couldn't register service in Consul, ", err)
-	}
-	log.Println("Registered in Consul", serviceID)
 
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve gRPC: %v", err)

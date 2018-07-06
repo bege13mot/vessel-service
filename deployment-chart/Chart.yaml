@@ -1,0 +1,4 @@
+apiVersion: v1
+description: Vessel service
+name: Vessel-service
+version: 0.1.0

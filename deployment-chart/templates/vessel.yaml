@@ -1,0 +1,41 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vessel
+  labels:
+    app: vessel
+spec:
+  ports:
+  - name: grpc
+    port: {{ .Values.config.grpcPort }}
+    protocol: TCP
+  selector:
+    app: vessel
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: vessel
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vessel
+  template:
+    metadata:
+      labels:
+        app: vessel
+    spec:
+        containers:
+        - name: vessel-service
+          image: bege13mot/vessel-service:latest
+          imagePullPolicy: Always
+          env:
+          - name: DB_HOST
+            value: {{ .Values.config.dbHost }}
+          - name: GRPC_ADDR
+            value: ":{{ .Values.config.grpcPort }}"
+          ports:
+          - containerPort: {{ .Values.config.grpcPort }}
+            name: grpc-port
